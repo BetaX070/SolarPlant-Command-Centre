@@ -1,0 +1,45 @@
+name: SolarPlant Fleet Hourly Logger
+
+on:
+  schedule:
+    - cron: '0 * * * *' 
+  workflow_dispatch: 
+
+permissions:
+  contents: write 
+
+jobs:
+  log-fleet-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Logger Script
+        run: node logger.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Run Garbage Collection (30-Day Prune)
+        run: node prune_logs.js
+
+      - name: Commit and Push History
+        run: |
+          git config --global user.name 'BetaX070'
+          git config --global user.email 'gambo7809@gmail.com'
+          git add solar_fleet_history.json
+          
+          if git diff --staged --quiet; then
+            echo "No operational changes detected this cycle. Closing process cleanly."
+          else
+            git commit -m "Automated hourly fleet log [30D Profile Constraints] [skip vercel]"
+            git push origin main
+          fi

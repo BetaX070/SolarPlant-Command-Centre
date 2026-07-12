@@ -1,0 +1,16 @@
+{
+  "name": "solarplant-fleet-command",
+  "version": "1.0.0",
+  "description": "SolarPlant Fleet Command Centre - Nightly telemetry logger and analytics aggregator",
+  "private": true,
+  "scripts": {
+    "log": "node logger.js",
+    "prune": "node prune_logs.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
