@@ -1510,7 +1510,7 @@
                 const val = snapshot.val() || {};
                 devicesData = {};
                 Object.keys(val).forEach(key => {
-                    if (val[key] && val[key].owner) {
+                    if (val[key] && val[key].status === 'Claimed') {
                         devicesData[key] = val[key];
                     }
                 });
@@ -2403,11 +2403,11 @@
                     doc.setFont("Montserrat", "bold");
                     doc.setFontSize(12);
                     doc.setTextColor(...cPrimaryDark);
-                    doc.text(label.toUpperCase(), 42, metaY);
+                    doc.text(label.toUpperCase(), 35, metaY);
                     doc.setFont("Montserrat", "normal");
                     doc.setTextColor(...cText);
-                    doc.text(String(val), 95, metaY);
-                    metaY += 14;
+                    doc.text(String(val), 105, metaY);
+                    metaY += 10;
                 };
 
                 const healthScore = Math.max(0, Math.min(100, (uptimePercent * 0.6) + (100 - (tempErrors / Math.max(1, checksTotal)) * 100) * 0.4)).toFixed(1);
@@ -2659,9 +2659,9 @@
                 doc.setFontSize(11);
                 doc.setTextColor(...cMuted);
                 doc.text("HARDWARE MODULE", 22, tableY);
-                doc.text("NOMINAL CHECKS", 85, tableY);
-                doc.text("ANOMALIES", 135, tableY);
-                doc.text("ACCURACY RATING", 163, tableY);
+                doc.text("NOMINAL", 90, tableY);
+                doc.text("FAULTS", 130, tableY);
+                doc.text("ACCURACY", 165, tableY);
 
                 doc.setDrawColor(220, 225, 223);
                 doc.setLineWidth(0.3);
@@ -2675,12 +2675,12 @@
                     doc.setTextColor(...cText);
                     doc.text(name, 22, tableY);
                     doc.setFont("Montserrat", "normal");
-                    doc.text(`${valids} ok`, 85, tableY);
-                    doc.text(`${errors} errs`, 135, tableY);
+                    doc.text(`${valids} ok`, 90, tableY);
+                    doc.text(`${errors} errs`, 130, tableY);
                     doc.setFont("Montserrat", "bold");
                     const accuracyColor = pct > 95 ? cPrimaryDark : cWarning;
                     doc.setTextColor(...accuracyColor);
-                    doc.text(`${pct.toFixed(2)}%`, 163, tableY);
+                    doc.text(`${pct.toFixed(2)}%`, 165, tableY);
                 };
 
                 drawSensorRow("Limit Switch End-Stops", tempValids, tempErrors);
