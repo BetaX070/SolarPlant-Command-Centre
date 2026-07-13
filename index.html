@@ -1510,7 +1510,7 @@
                 const val = snapshot.val() || {};
                 devicesData = {};
                 Object.keys(val).forEach(key => {
-                    if (val[key] && val[key].status === 'Claimed') {
+                    if (val[key] && (val[key].status === 'Claimed' || val[key].owner)) {
                         devicesData[key] = val[key];
                     }
                 });
