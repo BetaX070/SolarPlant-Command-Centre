@@ -2166,8 +2166,8 @@
             if (el('rpt-online')) el('rpt-online').textContent = online;
             if (el('rpt-offline')) el('rpt-offline').textContent = offline;
             if (el('rpt-anomaly')) el('rpt-anomaly').textContent = anomaly;
-            const uptimePct = total > 0 ? (online / total) * 100 : 100;
-            const score = Math.max(0, Math.min(100, uptimePct)).toFixed(1);
+            const uptimePct = total > 0 ? (online / total) * 100 : 0;
+            const score = total > 0 ? Math.max(0, Math.min(100, uptimePct)).toFixed(1) : "0.0";
             if (el('rpt-health-score')) el('rpt-health-score').textContent = `${score} / 100`;
             if (el('rpt-health-bar')) el('rpt-health-bar').style.width = `${score}%`;
         }
@@ -2346,9 +2346,15 @@
                     if (d.hasAnomaly) { anomalyUnits = 1; sensorFaultUnits = 1; }
                 }
 
-                let uptimePercent = checksTotal > 0 ? (onlineChecks / checksTotal) * 100 : 96.5;
-                if (totalUnits === 1) {
+                let uptimePercent = 0.0;
+                if (totalUnits === 0) {
+                    uptimePercent = 0.0;
+                } else if (checksTotal > 0) {
+                    uptimePercent = (onlineChecks / checksTotal) * 100;
+                } else if (totalUnits === 1) {
                     uptimePercent = list.find(d => d.id === targetVal).isOnline ? 100.0 : 0.0;
+                } else {
+                    uptimePercent = (onlineUnits / totalUnits) * 100;
                 }
 
                 // Map 3 hardware integrity charts error values
@@ -2449,7 +2455,10 @@
                 let uptimeComment = "";
                 let uptimeAdvice = "";
 
-                if (uptimePercent >= 95) {
+                if (totalUnits === 0) {
+                    uptimeComment = `not applicable, as there are currently no claimed devices in the fleet.`;
+                    uptimeAdvice = `There are no claimed devices registered to generate compliance data. Please register your first SolarPlant cleaner to begin accumulating telemetry analytics and operational reports.`;
+                } else if (uptimePercent >= 95) {
                     uptimeComment = `an outstanding network connectivity rating of ${uptimePercent.toFixed(1)}%, falling in the excellent category.`;
                     uptimeAdvice = `This demonstrates that devices across all farm locations maintained stable connections to the BetaX servers. Autonomous cleaning robots executed washing and brushing routines without connection drops. Auto-reconnection software handled transient rural network hiccups.`;
                 } else if (uptimePercent >= 70) {
@@ -2670,7 +2679,7 @@
                 const drawSensorRow = (name, valids, errors) => {
                     tableY += 10;
                     const total = valids + errors;
-                    const pct = total > 0 ? (valids / total) * 100 : 100;
+                    const pct = total > 0 ? (valids / total) * 100 : (totalUnits > 0 ? 100 : 0);
                     doc.setFont("Montserrat", "bold");
                     doc.setTextColor(...cText);
                     doc.text(name, 22, tableY);
