@@ -2532,7 +2532,19 @@
                 p2Y = chartStartY + 68;
                 const hasAnyIssue = offlineUnits > 0 || anomalyUnits > 0;
 
-                if (!hasAnyIssue) {
+                if (totalUnits === 0) {
+                    doc.setFillColor(243, 244, 246);
+                    doc.roundedRect(15, p2Y, 180, 36, 6, 6, 'F');
+                    doc.setFont("Montserrat", "bold");
+                    doc.setFontSize(13);
+                    doc.setTextColor(75, 85, 99);
+                    doc.text("SYSTEM STATUS: PENDING DEPLOYMENT", 20, p2Y + 10);
+                    doc.setFont("Montserrat", "normal");
+                    doc.setFontSize(11);
+                    doc.setTextColor(107, 114, 128);
+                    const nomTxt = "There are no devices registered to the fleet. The compliance metrics and sensor validation routines require at least one claimed active device to begin populating operational telemetry data.";
+                    doc.text(doc.splitTextToSize(nomTxt, 168), 20, p2Y + 18);
+                } else if (!hasAnyIssue) {
                     doc.setFillColor(239, 246, 255);
                     doc.roundedRect(15, p2Y, 180, 36, 6, 6, 'F');
                     doc.setFont("Montserrat", "bold");
