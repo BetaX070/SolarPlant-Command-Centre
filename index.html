@@ -2416,7 +2416,7 @@
                     metaY += 10;
                 };
 
-                const healthScore = Math.max(0, Math.min(100, (uptimePercent * 0.6) + (100 - (tempErrors / Math.max(1, checksTotal)) * 100) * 0.4)).toFixed(1);
+                const healthScore = totalUnits > 0 ? Math.max(0, Math.min(100, (uptimePercent * 0.6) + (100 - (tempErrors / Math.max(1, checksTotal)) * 100) * 0.4)).toFixed(1) : "0.0";
 
                 drawMetaRow("Target Scope:", targetVal === 'all' ? `Entire Active Fleet (${totalUnits} claimed units)` : `Single Site: ${selectedFarm}`);
                 drawMetaRow("Grower / Client:", targetVal === 'all' ? "Aggregated Fleet Administration" : selectedName);
