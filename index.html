@@ -1524,6 +1524,7 @@
             
             const now = Date.now() + serverTimeOffset;
             let onlineCount = 0, offlineCount = 0, criticalCount = 0;
+            let healthyOnlineCount = 0, normalOfflineCount = 0;
             let activeMotors = 0, activePumps = 0, totalActive = 0;
 
             list.forEach(d => {
@@ -1560,9 +1561,18 @@
 
                 if (d.isOnline) {
                     onlineCount++;
-                    if (d.hasAnomaly) criticalCount++;
+                    if (d.hasAnomaly) {
+                        criticalCount++;
+                    } else {
+                        healthyOnlineCount++;
+                    }
                 } else {
                     offlineCount++;
+                    if (d.hasAnomaly) {
+                        criticalCount++;
+                    } else {
+                        normalOfflineCount++;
+                    }
                 }
 
                 // Tally active operations (Pumps / Motors running)
@@ -1590,7 +1600,7 @@
             });
 
             document.getElementById("kpi-total").textContent = total;
-            document.getElementById("kpi-online").textContent = onlineCount - criticalCount;
+            document.getElementById("kpi-online").textContent = healthyOnlineCount;
             document.getElementById("kpi-offline").textContent = offlineCount;
             document.getElementById("kpi-critical").textContent = criticalCount;
             document.getElementById("kpi-overtime").textContent = total;
@@ -1607,7 +1617,7 @@
                 critBadge.style.display = "none";
             }
 
-            updateChart(onlineCount - criticalCount, criticalCount, offlineCount);
+            updateChart(healthyOnlineCount, criticalCount, normalOfflineCount);
             populateTable(list);
             populateRegionalAnalytics(list);
             populateReportTargets(list);
@@ -1755,7 +1765,7 @@
                     problems.push(`Panel *${d.id}* went *offline* (last seen: ${formatAgoLong(d.lastSeenMs)})`);
                     if (!suggestions.includes("• Verify the WiFi router / MiFi and power supply on-site.")) {
                         suggestions.push("• Verify the WiFi router / MiFi and power supply on-site.");
-                        suggestions.push("• Press the physical reset button on the ESP32 enclosure to force reconnect.");
+                        suggestions.push("• Press the physical reset button on the main control unit to force reconnect.");
                     }
                 }
 
@@ -1767,24 +1777,17 @@
                     }
                 }
 
-                if (d.isPumpRunning || d.isMotorRunning) {
-                    // Alert if running past normal intervals
-                    if (d.isPumpOvertime) {
-                        problems.push(`Panel *${d.id}* wash pump has been running continuously for OVER 30 MINUTES!`);
-                        if (!suggestions.includes("• Please check your dashboard to conserve water and hardware lifespan by turning off the pump.")) {
-                            suggestions.push("• Please check your dashboard to conserve water and hardware lifespan by turning off the pump.");
-                        }
-                    } else if (d.isPumpRunning) {
-                        problems.push(`Panel *${d.id}* wash pump is currently *running*.`);
+                if (d.isPumpOvertime) {
+                    problems.push(`Panel *${d.id}* wash pump has been running continuously for OVER 30 MINUTES!`);
+                    if (!suggestions.includes("• Please check your dashboard to conserve water and hardware lifespan by turning off the pump.")) {
+                        suggestions.push("• Please check your dashboard to conserve water and hardware lifespan by turning off the pump.");
                     }
-                    
-                    if (d.isMotorOvertime) {
-                        problems.push(`Panel *${d.id}* cleaner robot brush motor has been running continuously for OVER 30 MINUTES!`);
-                        if (!suggestions.includes("• Please check your dashboard to conserve hardware lifespan by turning off the robot motor.")) {
-                            suggestions.push("• Please check your dashboard to conserve hardware lifespan by turning off the robot motor.");
-                        }
-                    } else if (d.isMotorRunning) {
-                        problems.push(`Panel *${d.id}* cleaner robot brush motor is currently *running*.`);
+                }
+                
+                if (d.isMotorOvertime) {
+                    problems.push(`Panel *${d.id}* cleaner robot brush motor has been running continuously for OVER 30 MINUTES!`);
+                    if (!suggestions.includes("• Please check your dashboard to conserve hardware lifespan by turning off the robot motor.")) {
+                        suggestions.push("• Please check your dashboard to conserve hardware lifespan by turning off the robot motor.");
                     }
                 }
             });
