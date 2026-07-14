@@ -52,7 +52,7 @@ async function cleanFirebaseLogs() {
             // Clean status_log (Structured by Push IDs containing Unix timestamps)
             if (deviceData.status_log) {
                 for (const [pushId, logData] of Object.entries(deviceData.status_log)) {
-                    if (logData.ts && logData.ts < cutoffUnixSecs) {
+                    if (logData.timestamp && logData.timestamp < cutoffUnixSecs) {
                         await db.ref(`SolarPlant/device_data/${deviceId}/status_log/${pushId}`).remove();
                         deletedStatusLogs++;
                     }
@@ -62,7 +62,7 @@ async function cleanFirebaseLogs() {
             // Clean action_log (Structured by Push IDs containing Unix timestamps)
             if (deviceData.action_log) {
                 for (const [pushId, logData] of Object.entries(deviceData.action_log)) {
-                    if (logData.ts && logData.ts < cutoffUnixSecs) {
+                    if (logData.timestamp && logData.timestamp < cutoffUnixSecs) {
                         await db.ref(`SolarPlant/device_data/${deviceId}/action_log/${pushId}`).remove();
                         deletedActionLogs++;
                     }
