@@ -1625,9 +1625,17 @@
         }
 
         // Global Health Distribution Doughnut Chart
+        let lastStable = -1, lastAlert = -1, lastOffline = -1;
         function updateChart(stable, alert, offline) {
             const ctx = document.getElementById('statusChart');
             if (!ctx) return;
+            if (stable === lastStable && alert === lastAlert && offline === lastOffline) {
+                return;
+            }
+            lastStable = stable;
+            lastAlert = alert;
+            lastOffline = offline;
+
             const total = stable + alert + offline;
             const labels = [`Healthy & Online (${stable})`, `Alerting & Online (${alert})`, `Offline (${offline})`];
             const data = [stable, alert, offline];
@@ -1777,17 +1785,34 @@
                     }
                 }
 
+                let pumpName = (d.pump && d.pump.name) ? d.pump.name : "Main Water Pump";
+                let robotName = "Robot Cleaner";
+                for (let i = 1; i <= 5; i++) {
+                    if (d[`robot${i}`] && d[`robot${i}`].status) {
+                        robotName = d[`robot${i}`].name || `Robot Cleaner ${i}`;
+                        break;
+                    }
+                }
+                if (robotName === "Robot Cleaner") {
+                    for (let i = 1; i <= 5; i++) {
+                        if (d[`robot${i}`] && d[`robot${i}`].name) {
+                            robotName = d[`robot${i}`].name;
+                            break;
+                        }
+                    }
+                }
+
                 if (d.isPumpOvertime) {
-                    problems.push(`Panel *${d.id}* wash pump has been running continuously for OVER 30 MINUTES!`);
-                    if (!suggestions.includes("• Please check your dashboard to conserve water and hardware lifespan by turning off the pump.")) {
-                        suggestions.push("• Please check your dashboard to conserve water and hardware lifespan by turning off the pump.");
+                    problems.push(`Panel *${d.id}* wash pump *(${pumpName})* has been running continuously for OVER 30 MINUTES!`);
+                    if (!suggestions.includes(`• Please check your dashboard to conserve water and hardware lifespan by turning off ${pumpName}.`)) {
+                        suggestions.push(`• Please check your dashboard to conserve water and hardware lifespan by turning off ${pumpName}.`);
                     }
                 }
                 
                 if (d.isMotorOvertime) {
-                    problems.push(`Panel *${d.id}* cleaner robot brush motor has been running continuously for OVER 30 MINUTES!`);
-                    if (!suggestions.includes("• Please check your dashboard to conserve hardware lifespan by turning off the robot motor.")) {
-                        suggestions.push("• Please check your dashboard to conserve hardware lifespan by turning off the robot motor.");
+                    problems.push(`Panel *${d.id}* cleaner robot *(${robotName})* has been running continuously for OVER 30 MINUTES!`);
+                    if (!suggestions.includes(`• Please check your dashboard to conserve hardware lifespan by turning off ${robotName}.`)) {
+                        suggestions.push(`• Please check your dashboard to conserve hardware lifespan by turning off ${robotName}.`);
                     }
                 }
             });
@@ -1910,13 +1935,75 @@
                         ? `<span class="status-indicator online"><span class="pulse-dot"></span>Online</span>`
                         : `<span class="status-indicator offline"><span class="static-dot"></span>Offline (${formatAgoLong(d.lastSeenMs)})</span>`;
 
-                    const pumpPill = d.isPumpRunning 
-                        ? `<span class="sensor-pill pill-normal"><span class="pill-dot"></span>Pump: RUNNING</span>`
-                        : `<span class="sensor-pill pill-warning"><span class="pill-dot"></span>Pump: IDLE</span>`;
+                    // Resolve custom names
+                    let pumpName = (d.pump && d.pump.name) ? d.pump.name : "Main Water Pump";
+                    let robotName = "Robot Cleaner";
+                    for (let i = 1; i <= 5; i++) {
+                        if (d[`robot${i}`] && d[`robot${i}`].status) {
+                            robotName = d[`robot${i}`].name || `Robot Cleaner ${i}`;
+                            break;
+                        }
+                    }
+                    if (robotName === "Robot Cleaner") {
+                        for (let i = 1; i <= 5; i++) {
+                            if (d[`robot${i}`] && d[`robot${i}`].name) {
+                                robotName = d[`robot${i}`].name;
+                                break;
+                            }
+                        }
+                    }
 
-                    const motorPill = d.isMotorRunning
-                        ? `<span class="sensor-pill pill-normal"><span class="pill-dot"></span>Motor: RUNNING</span>`
-                        : `<span class="sensor-pill pill-warning"><span class="pill-dot"></span>Motor: IDLE</span>`;
+                    // Helper to format local time
+                    const formatTimeOnly = (epoch) => {
+                        if (!epoch || epoch < 1000000000) return "";
+                        const date = new Date(epoch * 1000);
+                        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                    };
+
+                    // Helper to format elapsed duration
+                    const formatElapsed = (seconds) => {
+                        if (seconds < 0) seconds = 0;
+                        const h = Math.floor(seconds / 3600);
+                        const m = Math.floor((seconds % 3600) / 60);
+                        const s = seconds % 60;
+                        if (h > 0) return `${h}h ${m}m`;
+                        if (m > 0) return `${m}m ${s}s`;
+                        return `${s}s`;
+                    };
+
+                    // Current Epoch
+                    const now = Date.now() + serverTimeOffset;
+                    const currentEpoch = Math.floor(now / 1000);
+
+                    // Pump pill builder
+                    let pumpPill = '';
+                    if (d.isPumpRunning) {
+                        const elapsed = d.pump_execStartTime ? (currentEpoch - d.pump_execStartTime) : 0;
+                        const isOvertime = elapsed >= 1800;
+                        const pillClass = isOvertime ? 'pill-critical' : 'pill-normal';
+                        const startStr = d.pump_execStartTime ? ` · Started: ${formatTimeOnly(d.pump_execStartTime)}` : '';
+                        const durStr = d.pump_execStartTime ? ` (${formatElapsed(elapsed)})` : '';
+                        const overtimeIndicator = isOvertime ? ' ⚠️ OVERTIME' : '';
+                        
+                        pumpPill = `<span class="sensor-pill ${pillClass}"><span class="pill-dot"></span>${pumpName}: RUNNING${durStr}${startStr}${overtimeIndicator}</span>`;
+                    } else {
+                        pumpPill = `<span class="sensor-pill pill-warning"><span class="pill-dot"></span>${pumpName}: IDLE</span>`;
+                    }
+
+                    // Motor/Robot pill builder
+                    let motorPill = '';
+                    if (d.isMotorRunning) {
+                        const elapsed = d.motor_execStartTime ? (currentEpoch - d.motor_execStartTime) : 0;
+                        const isOvertime = elapsed >= 1800;
+                        const pillClass = isOvertime ? 'pill-critical' : 'pill-normal';
+                        const startStr = d.motor_execStartTime ? ` · Started: ${formatTimeOnly(d.motor_execStartTime)}` : '';
+                        const durStr = d.motor_execStartTime ? ` (${formatElapsed(elapsed)})` : '';
+                        const overtimeIndicator = isOvertime ? ' ⚠️ OVERTIME' : '';
+
+                        motorPill = `<span class="sensor-pill ${pillClass}"><span class="pill-dot"></span>${robotName}: RUNNING${durStr}${startStr}${overtimeIndicator}</span>`;
+                    } else {
+                        motorPill = `<span class="sensor-pill pill-warning"><span class="pill-dot"></span>${robotName}: IDLE</span>`;
+                    }
 
                     const healthPill = d.sensor_health === "Fault"
                         ? `<span class="sensor-pill pill-critical"><span class="pill-dot"></span>Limit Switch: FAULT</span>`
@@ -2981,6 +3068,13 @@
 
         const btn = document.getElementById("generate-pdf-btn");
         if (btn) btn.addEventListener('click', window.compilePDFReport);
+
+        // Periodically refresh UI every second to update live ticking runtime durations and "ago" timestamps
+        setInterval(() => {
+            if (Object.keys(devicesData).length > 0) {
+                updateUI();
+            }
+        }, 1000);
     </script>
 </body>
 
