@@ -127,6 +127,20 @@
       "sensorFaults": 0,
       "pumpRuns": 0,
       "robotRuns": 0
+    },
+    "-OxWUZmDxTs4DxzeWBJY": {
+      "onlineEvents": 3,
+      "offlineEvents": 2,
+      "sensorFaults": 0,
+      "pumpRuns": 0,
+      "robotRuns": 0
+    },
+    "-OxWkS9vEieGF9KG9VFJ": {
+      "onlineEvents": 1,
+      "offlineEvents": 0,
+      "sensorFaults": 0,
+      "pumpRuns": 0,
+      "robotRuns": 0
     }
   }
 }
