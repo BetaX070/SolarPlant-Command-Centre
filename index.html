@@ -1390,7 +1390,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         // Fetch telemetry history compiled by background engine
@@ -1518,9 +1518,10 @@
             });
         }
 
-        // Core UI Update Engine
-        function updateUI() {
+        // Global State & Tallying
+        window.updateUI = function (data) {
             const list = Object.keys(devicesData).map(key => ({ id: key, ...devicesData[key] }));
+            
             const now = Date.now() + serverTimeOffset;
             let onlineCount = 0, offlineCount = 0, criticalCount = 0;
             let activeMotors = 0, activePumps = 0, totalActive = 0;
@@ -1567,6 +1568,11 @@
                 // Tally active operations (Pumps / Motors running)
                 d.isPumpRunning = d.pump_status === "Running" || (d.pump && d.pump.status);
                 d.isMotorRunning = d.motor_status === "Running" || [1,2,3,4,5].some(i => d[`robot${i}`] && d[`robot${i}`].status);
+                
+                // Track Overtime (>30 mins = 1800 seconds)
+                const currentEpoch = Math.floor(now / 1000);
+                d.isPumpOvertime = d.isPumpRunning && d.pump_execStartTime && (currentEpoch - d.pump_execStartTime) > 1800;
+                d.isMotorOvertime = d.isMotorRunning && d.motor_execStartTime && (currentEpoch - d.motor_execStartTime) > 1800;
                 
                 if (d.isPumpRunning) activePumps++;
                 if (d.isMotorRunning) activeMotors++;
@@ -1763,10 +1769,21 @@
 
                 if (d.isPumpRunning || d.isMotorRunning) {
                     // Alert if running past normal intervals
-                    if (d.isPumpRunning) {
+                    if (d.isPumpOvertime) {
+                        problems.push(`Panel *${d.id}* wash pump has been running continuously for OVER 30 MINUTES!`);
+                        if (!suggestions.includes("• Please check your dashboard to conserve water and hardware lifespan by turning off the pump.")) {
+                            suggestions.push("• Please check your dashboard to conserve water and hardware lifespan by turning off the pump.");
+                        }
+                    } else if (d.isPumpRunning) {
                         problems.push(`Panel *${d.id}* wash pump is currently *running*.`);
                     }
-                    if (d.isMotorRunning) {
+                    
+                    if (d.isMotorOvertime) {
+                        problems.push(`Panel *${d.id}* cleaner robot brush motor has been running continuously for OVER 30 MINUTES!`);
+                        if (!suggestions.includes("• Please check your dashboard to conserve hardware lifespan by turning off the robot motor.")) {
+                            suggestions.push("• Please check your dashboard to conserve hardware lifespan by turning off the robot motor.");
+                        }
+                    } else if (d.isMotorRunning) {
                         problems.push(`Panel *${d.id}* cleaner robot brush motor is currently *running*.`);
                     }
                 }
