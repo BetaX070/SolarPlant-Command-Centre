@@ -1981,8 +1981,7 @@
         // Device Timeline Diagnostics Builder (Circular Buffer)
         window.buildTimelines = function (expandId) {
             const container = document.getElementById('tl-' + expandId);
-            if (!container || container.dataset.built === '1') return;
-            container.dataset.built = '1';
+            if (!container) return;
 
             const devId = expandId.replace('exp-', '');
             const device = devicesData[devId];
