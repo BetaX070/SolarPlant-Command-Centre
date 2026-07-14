@@ -1170,8 +1170,8 @@
                         <div class="kpi-value" style="color:var(--warning)" id="kpi-critical">0</div>
                         <div class="kpi-sub">Limit switch faults · <span style="opacity:0.7;">↗ view</span></div>
                     </div>
-                    <div class="kpi-card kpi-clickable" onclick="window.filterAndGo('overtime')" style="background:var(--card);">
-                        <div class="kpi-label">Active Cleaning</div>
+                    <div class="kpi-card" style="background:var(--card);">
+                        <div class="kpi-label">Provisioned Hardware</div>
                         <div class="kpi-value" style="color:#2563EB" id="kpi-overtime">0</div>
                         <div class="kpi-sub" id="kpi-overtime-sub">0 Robots · 0 Pumps</div>
                     </div>
@@ -1574,12 +1574,21 @@
             });
 
             const total = list.length;
+            let totalConfiguredRobots = 0;
+            list.forEach(d => {
+                [1, 2, 3, 4, 5].forEach(i => {
+                    if (d[`robot${i}`] && d[`robot${i}`].name) {
+                        totalConfiguredRobots++;
+                    }
+                });
+            });
+
             document.getElementById("kpi-total").textContent = total;
             document.getElementById("kpi-online").textContent = onlineCount - criticalCount;
             document.getElementById("kpi-offline").textContent = offlineCount;
             document.getElementById("kpi-critical").textContent = criticalCount;
-            document.getElementById("kpi-overtime").textContent = totalActive;
-            document.getElementById("kpi-overtime-sub").textContent = `${activeMotors} Robot${activeMotors !== 1 ? 's' : ''} · ${activePumps} Pump${activePumps !== 1 ? 's' : ''}`;
+            document.getElementById("kpi-overtime").textContent = total;
+            document.getElementById("kpi-overtime-sub").textContent = `${totalConfiguredRobots} Robot${totalConfiguredRobots !== 1 ? 's' : ''} · ${total} Pump${total !== 1 ? 's' : ''}`;
             document.getElementById("deployed-footer-count").textContent = `${total} panels deployed`;
             document.getElementById("kpi-uptime-sub").textContent =
                 `${total > 0 ? ((onlineCount / total) * 100).toFixed(1) : "0.0"}% online rate · ↗ view`;
