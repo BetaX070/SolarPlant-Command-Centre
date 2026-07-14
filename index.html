@@ -1565,9 +1565,12 @@
                 }
 
                 // Tally active operations (Pumps / Motors running)
-                if (d.pump_status === "Running") activePumps++;
-                if (d.motor_status === "Running") activeMotors++;
-                if (d.pump_status === "Running" || d.motor_status === "Running") totalActive++;
+                d.isPumpRunning = d.pump_status === "Running" || (d.pump && d.pump.status);
+                d.isMotorRunning = d.motor_status === "Running" || [1,2,3,4,5].some(i => d[`robot${i}`] && d[`robot${i}`].status);
+                
+                if (d.isPumpRunning) activePumps++;
+                if (d.isMotorRunning) activeMotors++;
+                if (d.isPumpRunning || d.isMotorRunning) totalActive++;
             });
 
             const total = list.length;
@@ -1749,12 +1752,12 @@
                     }
                 }
 
-                if (d.pump_status === "Running" || d.motor_status === "Running") {
+                if (d.isPumpRunning || d.isMotorRunning) {
                     // Alert if running past normal intervals
-                    if (d.pump_status === "Running") {
+                    if (d.isPumpRunning) {
                         problems.push(`Panel *${d.id}* wash pump is currently *running*.`);
                     }
-                    if (d.motor_status === "Running") {
+                    if (d.isMotorRunning) {
                         problems.push(`Panel *${d.id}* cleaner robot brush motor is currently *running*.`);
                     }
                 }
@@ -1878,11 +1881,11 @@
                         ? `<span class="status-indicator online"><span class="pulse-dot"></span>Online</span>`
                         : `<span class="status-indicator offline"><span class="static-dot"></span>Offline (${formatAgoLong(d.lastSeenMs)})</span>`;
 
-                    const pumpPill = d.pump_status === "Running" 
+                    const pumpPill = d.isPumpRunning 
                         ? `<span class="sensor-pill pill-normal"><span class="pill-dot"></span>Pump: RUNNING</span>`
                         : `<span class="sensor-pill pill-warning"><span class="pill-dot"></span>Pump: IDLE</span>`;
 
-                    const motorPill = d.motor_status === "Running"
+                    const motorPill = d.isMotorRunning
                         ? `<span class="sensor-pill pill-normal"><span class="pill-dot"></span>Motor: RUNNING</span>`
                         : `<span class="sensor-pill pill-warning"><span class="pill-dot"></span>Motor: IDLE</span>`;
 
@@ -1961,8 +1964,11 @@
                 const logData = device.status_log.history ? device.status_log.history : device.status_log;
 
                 Object.keys(logData).forEach(key => {
-                    if (key !== 'history' && logData[key] && logData[key].ts) {
-                        events.push(logData[key]);
+                    if (key !== 'history' && logData[key]) {
+                        const ts = logData[key].timestamp || logData[key].ts;
+                        if (ts) {
+                            events.push({ ...logData[key], ts: ts });
+                        }
                     }
                 });
 
