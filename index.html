@@ -1529,15 +1529,22 @@
                 // Cross-reference user profiles and regional locations
                 const ownerId = d.owner;
                 const ownerData = window.usersDB[ownerId] || {};
-                const locData = window.farmsDB[ownerId] || {};
+                
+                // locations metadata is structured as SolarPlant/locations/$uid/$locationId
+                const userLocations = window.farmsDB[ownerId] || {};
+                const locationObj = userLocations[d.locationId] || {};
 
                 d.owner_name = ownerData.name || ownerData.email || "Unknown Customer";
-                d.owner_phone = ownerData.phone || null;
-                d.farm_name = ownerData.farm_name || "BetaX Solar Farm";
+                d.owner_phone = ownerData.whatsapp || ownerData.phone || null;
+                d.farm_name = locationObj.name || ownerData.farm_name || "BetaX Solar Farm";
 
                 let loc = "Unknown Region";
-                if (locData.state && locData.country) {
-                    loc = `${locData.state}, ${locData.country}`;
+                const ownerState = ownerData.state || "";
+                const ownerCountry = ownerData.country || "";
+                if (ownerState && ownerCountry) {
+                    loc = `${ownerState}, ${ownerCountry}`;
+                } else if (ownerCountry) {
+                    loc = ownerCountry;
                 } else if (ownerData.farm_location) {
                     loc = ownerData.farm_location;
                 }
