@@ -1600,7 +1600,7 @@
             });
 
             document.getElementById("kpi-total").textContent = total;
-            document.getElementById("kpi-online").textContent = healthyOnlineCount;
+            document.getElementById("kpi-online").textContent = onlineCount;
             document.getElementById("kpi-offline").textContent = offlineCount;
             document.getElementById("kpi-critical").textContent = criticalCount;
             document.getElementById("kpi-overtime").textContent = total;
@@ -1617,7 +1617,7 @@
                 critBadge.style.display = "none";
             }
 
-            updateChart(healthyOnlineCount, criticalCount, normalOfflineCount);
+            updateChart(healthyOnlineCount, onlineCount - healthyOnlineCount, offlineCount);
             populateTable(list);
             populateRegionalAnalytics(list);
             populateReportTargets(list);
