@@ -173,8 +173,8 @@
       "robotRuns": 0
     },
     "-OxWkS9vEieGF9KG9VFJ": {
-      "onlineEvents": 0,
-      "offlineEvents": 0,
+      "onlineEvents": 1,
+      "offlineEvents": 1,
       "sensorFaults": 0,
       "pumpRuns": 0,
       "robotRuns": 0
