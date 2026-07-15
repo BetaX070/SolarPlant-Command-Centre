@@ -201,20 +201,27 @@
       "robotRuns": 0
     },
     "-Ox_YnaS_M87Vb_Tyfy0": {
-      "onlineEvents": 3,
-      "offlineEvents": 2,
+      "onlineEvents": 4,
+      "offlineEvents": 3,
       "sensorFaults": 0,
       "pumpRuns": 0,
       "robotRuns": 0
     },
     "-Ox_vWdTjGffaVZFr-_x": {
-      "onlineEvents": 2,
-      "offlineEvents": 1,
+      "onlineEvents": 4,
+      "offlineEvents": 2,
       "sensorFaults": 0,
       "pumpRuns": 0,
       "robotRuns": 0
     },
     "-OxaCFIQ8F_0IjR2lteS": {
+      "onlineEvents": 4,
+      "offlineEvents": 2,
+      "sensorFaults": 0,
+      "pumpRuns": 0,
+      "robotRuns": 0
+    },
+    "-OxaWS7asXbAj70mKmD0": {
       "onlineEvents": 1,
       "offlineEvents": 0,
       "sensorFaults": 0,
