@@ -1833,7 +1833,7 @@
 
             const filtered = list.filter(d => {
                 if (!activeFilter) return true;
-                if (activeFilter === 'online') return d.isOnline && !d.hasAnomaly;
+                if (activeFilter === 'online') return d.isOnline;
                 if (activeFilter === 'offline') return !d.isOnline;
                 if (activeFilter === 'critical') return d.hasAnomaly;
                 if (activeFilter === 'overtime') return d.pump_status === "Running" || d.motor_status === "Running";
