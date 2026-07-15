@@ -2011,9 +2011,13 @@
 
                     const cleanerSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
 
+                    const isDeviceExpanded = window.expandedDeviceIds && window.expandedDeviceIds[expandId];
+                    const deviceExpandStyle = isDeviceExpanded ? 'display: table-row;' : 'display: none;';
+                    const deviceChevClass = isDeviceExpanded ? 'open' : '';
+
                     farmHtml += `
                     <tr class="farmer-row farm-child-row child-of-${farmId}" onclick="window.toggleExpand('${expandId}')" style="${rowStyle}">
-                      <td style="text-align: center;"><span class="expand-chevron" id="chev-${expandId}">${chevronRightSvg}</span></td>
+                      <td style="text-align: center;"><span class="expand-chevron ${deviceChevClass}" id="chev-${expandId}">${chevronRightSvg}</span></td>
                       <td style="max-width: 0;">
                         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; width: 100%;">
                           <span style="font-weight:800; font-size:16px; color:#1E293B;">${d.owner_name || 'Pending Registration'}</span>
@@ -2029,7 +2033,7 @@
                         </div>
                       </td>
                     </tr>
-                    <tr class="expand-row child-of-${farmId}" id="${expandId}" style="display:none;">
+                    <tr class="expand-row child-of-${farmId}" id="${expandId}" style="${deviceExpandStyle}">
                       <td colspan="2" style="padding:0;">
                         <div id="tl-${expandId}"></div>
                       </td>
@@ -2040,6 +2044,15 @@
                 farmHtml += `</tbody></table></div>`;
                 container.insertAdjacentHTML('beforeend', farmHtml);
             });
+
+            // Re-build timeline content for any expanded rows
+            if (window.expandedDeviceIds) {
+                Object.keys(window.expandedDeviceIds).forEach(expandId => {
+                    if (window.expandedDeviceIds[expandId]) {
+                        window.buildTimelines(expandId);
+                    }
+                });
+            }
         }
 
         // Accordion Toggle
@@ -2148,6 +2161,8 @@
             `;
         };
 
+        window.expandedDeviceIds = window.expandedDeviceIds || {};
+
         window.toggleExpand = function (id) {
             const row = document.getElementById(id);
             const chev = document.getElementById('chev-' + id);
@@ -2155,9 +2170,12 @@
             document.querySelectorAll('.expand-row').forEach(r => r.style.display = 'none');
             document.querySelectorAll('.farmer-row .expand-chevron').forEach(c => c.classList.remove('open'));
 
+            window.expandedDeviceIds = {};
+
             if (!isOpen) {
                 row.style.display = 'table-row';
                 chev.classList.add('open');
+                window.expandedDeviceIds[id] = true;
                 window.buildTimelines(id);
             }
         };
