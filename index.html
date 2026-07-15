@@ -2164,19 +2164,36 @@
         window.expandedDeviceIds = window.expandedDeviceIds || {};
 
         window.toggleExpand = function (id) {
-            const row = document.getElementById(id);
-            const chev = document.getElementById('chev-' + id);
-            const isOpen = row.style.display === 'table-row';
-            document.querySelectorAll('.expand-row').forEach(r => r.style.display = 'none');
-            document.querySelectorAll('.farmer-row .expand-chevron').forEach(c => c.classList.remove('open'));
+            try {
+                const row = document.getElementById(id);
+                const chev = document.getElementById('chev-' + id);
+                
+                // Track open state using the window.expandedDeviceIds tracking state
+                const isOpen = !!(window.expandedDeviceIds && window.expandedDeviceIds[id]);
 
-            window.expandedDeviceIds = {};
+                // Hide all expand-rows and remove open class from chevrons
+                document.querySelectorAll('.expand-row').forEach(r => {
+                    r.style.display = 'none';
+                });
+                document.querySelectorAll('.farmer-row .expand-chevron').forEach(c => {
+                    c.classList.remove('open');
+                });
 
-            if (!isOpen) {
-                row.style.display = 'table-row';
-                chev.classList.add('open');
-                window.expandedDeviceIds[id] = true;
-                window.buildTimelines(id);
+                // Clear the tracking object
+                window.expandedDeviceIds = {};
+
+                if (!isOpen) {
+                    if (row) {
+                        row.style.display = 'table-row';
+                    }
+                    if (chev) {
+                        chev.classList.add('open');
+                    }
+                    window.expandedDeviceIds[id] = true;
+                    window.buildTimelines(id);
+                }
+            } catch (err) {
+                console.error("Error in toggleExpand:", err);
             }
         };
 
