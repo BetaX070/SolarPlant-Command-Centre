@@ -87,17 +87,8 @@ async function logFleetData() {
         fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
         console.log(`>> Metrics compiled successfully for date: ${today}`);
         
-        // --- PRUNING (Cost Saving) ---
-        // Delete all action_log and status_log nodes from Firebase to save space!
-        console.log(">> Pruning yesterday's logs from Firebase to save costs...");
-        const updates = {};
-        for (const id of Object.keys(devices)) {
-            updates[`SolarPlant/device_data/${id}/status_log`] = null;
-            updates[`SolarPlant/device_data/${id}/action_log`] = null;
-        }
-        await db.ref().update(updates);
-        console.log(">> Firebase logs pruned successfully.");
-        
+        // Note: Firebase logs (status_log and action_log) are pruned daily by clean_firebase.js
+        // to retain 31 days of history, avoiding hourly deletion.
         process.exit(0);
 
     } catch (error) {
