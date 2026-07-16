@@ -40,7 +40,7 @@ async function cleanFirebaseLogs() {
 
         console.log(`>> Cutoff Date: ${cutoffDate.toISOString().split('T')[0]}`);
         
-        const snapshot = await db.ref('SolarPlant/device_data').once('value');
+        const snapshot = await db.ref('SolarPlant/device_logs').once('value');
         const devices = snapshot.val();
 
         if (!devices) {
@@ -58,7 +58,7 @@ async function cleanFirebaseLogs() {
             if (deviceData.status_log) {
                 for (const [pushId, logData] of Object.entries(deviceData.status_log)) {
                     if (logData.timestamp && logData.timestamp < cutoffUnixSecs) {
-                        await db.ref(`SolarPlant/device_data/${deviceId}/status_log/${pushId}`).remove();
+                        await db.ref(`SolarPlant/device_logs/${deviceId}/status_log/${pushId}`).remove();
                         deletedStatusLogs++;
                     }
                 }
@@ -68,7 +68,7 @@ async function cleanFirebaseLogs() {
             if (deviceData.action_log) {
                 for (const [pushId, logData] of Object.entries(deviceData.action_log)) {
                     if (logData.timestamp && logData.timestamp < cutoffUnixSecs) {
-                        await db.ref(`SolarPlant/device_data/${deviceId}/action_log/${pushId}`).remove();
+                        await db.ref(`SolarPlant/device_logs/${deviceId}/action_log/${pushId}`).remove();
                         deletedActionLogs++;
                     }
                 }
