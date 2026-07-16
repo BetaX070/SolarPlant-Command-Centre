@@ -2085,23 +2085,26 @@
 
             const devId = expandId.replace('exp-', '');
             const device = devicesData[devId];
-            let timelineHtml = '<div style="padding: 20px 0; color: #9CA3AF; font-size: 12px; text-align: center;">Loading diagnostics...</div>';
             
-            // Set loading state immediately
-            container.innerHTML = `
-                <div style="padding: 24px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; margin: 10px 0;">
-                    <div style="font-size: 12px; letter-spacing: 1px; color: var(--text); font-weight: 700; font-family: var(--sans); margin-bottom: 8px;">
-                        RECENT TRANSITION DIAGNOSTICS
+            let existingHtml = container.innerHTML || '';
+            if (!existingHtml.includes("RECENT TRANSITION DIAGNOSTICS") || existingHtml.includes("Loading diagnostics...")) {
+                let initialTimelineHtml = '<div style="padding: 20px 0; color: #9CA3AF; font-size: 12px; text-align: center;">Loading diagnostics...</div>';
+                container.innerHTML = `
+                    <div style="padding: 24px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; margin: 10px 0;">
+                        <div style="font-size: 12px; letter-spacing: 1px; color: var(--text); font-weight: 700; font-family: var(--sans); margin-bottom: 8px;">
+                            RECENT TRANSITION DIAGNOSTICS
+                        </div>
+                        <div style="font-size: 11px; color: #6B7280; margin-bottom: 16px;">
+                            Live trace events fetched directly from circular buffer status log
+                        </div>
+                        <div style="max-height: 250px; overflow-y: auto;">
+                            ${initialTimelineHtml}
+                        </div>
                     </div>
-                    <div style="font-size: 11px; color: #6B7280; margin-bottom: 16px;">
-                        Live trace events fetched directly from circular buffer status log
-                    </div>
-                    <div style="max-height: 250px; overflow-y: auto;">
-                        ${timelineHtml}
-                    </div>
-                </div>
-            `;
+                `;
+            }
 
+            let timelineHtml = '';
             try {
                 const logsSnapshot = await get(child(ref(db), 'SolarPlant/device_logs/' + devId + '/status_log'));
                 const logData = logsSnapshot.val();
