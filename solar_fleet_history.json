@@ -245,22 +245,22 @@
       "robotRuns": 0
     },
     "-Ox_vWdTjGffaVZFr-_x": {
-      "onlineEvents": 2,
-      "offlineEvents": 1,
-      "sensorFaults": 0,
-      "pumpRuns": 0,
-      "robotRuns": 0
-    },
-    "-OxaCFIQ8F_0IjR2lteS": {
-      "onlineEvents": 3,
+      "onlineEvents": 4,
       "offlineEvents": 2,
       "sensorFaults": 0,
       "pumpRuns": 0,
       "robotRuns": 0
     },
+    "-OxaCFIQ8F_0IjR2lteS": {
+      "onlineEvents": 6,
+      "offlineEvents": 4,
+      "sensorFaults": 0,
+      "pumpRuns": 0,
+      "robotRuns": 0
+    },
     "-OxaWS7asXbAj70mKmD0": {
-      "onlineEvents": 2,
-      "offlineEvents": 1,
+      "onlineEvents": 4,
+      "offlineEvents": 2,
       "sensorFaults": 0,
       "pumpRuns": 0,
       "robotRuns": 0
@@ -273,8 +273,8 @@
       "robotRuns": 0
     },
     "-Ox_YnaS_M87Vb_Tyfy0": {
-      "onlineEvents": 1,
-      "offlineEvents": 1,
+      "onlineEvents": 2,
+      "offlineEvents": 2,
       "sensorFaults": 0,
       "pumpRuns": 0,
       "robotRuns": 0
