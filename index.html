@@ -1390,7 +1390,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, onValue, remove, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         // Fetch telemetry history compiled by background engine
@@ -2079,71 +2079,93 @@
         };
 
         // Device Timeline Diagnostics Builder (Circular Buffer)
-        window.buildTimelines = function (expandId) {
+        window.buildTimelines = async function (expandId) {
             const container = document.getElementById('tl-' + expandId);
             if (!container) return;
 
             const devId = expandId.replace('exp-', '');
             const device = devicesData[devId];
-            let timelineHtml = '';
+            let timelineHtml = '<div style="padding: 20px 0; color: #9CA3AF; font-size: 12px; text-align: center;">Loading diagnostics...</div>';
+            
+            // Set loading state immediately
+            container.innerHTML = `
+                <div style="padding: 24px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; margin: 10px 0;">
+                    <div style="font-size: 12px; letter-spacing: 1px; color: var(--text); font-weight: 700; font-family: var(--sans); margin-bottom: 8px;">
+                        RECENT TRANSITION DIAGNOSTICS
+                    </div>
+                    <div style="font-size: 11px; color: #6B7280; margin-bottom: 16px;">
+                        Live trace events fetched directly from circular buffer status log
+                    </div>
+                    <div style="max-height: 250px; overflow-y: auto;">
+                        ${timelineHtml}
+                    </div>
+                </div>
+            `;
 
-            if (device && device.status_log) {
-                let events = [];
-                const logData = device.status_log.history ? device.status_log.history : device.status_log;
+            try {
+                const logsSnapshot = await get(child(ref(db), 'SolarPlant/device_logs/' + devId + '/status_log'));
+                const logData = logsSnapshot.val();
 
-                Object.keys(logData).forEach(key => {
-                    if (key !== 'history' && logData[key]) {
-                        const ts = logData[key].timestamp || logData[key].ts;
-                        if (ts) {
-                            events.push({ ...logData[key], ts: ts });
+                if (logData) {
+                    let events = [];
+                    Object.keys(logData).forEach(key => {
+                        if (logData[key]) {
+                            const ts = logData[key].timestamp || logData[key].ts;
+                            if (ts) {
+                                events.push({ ...logData[key], ts: ts });
+                            }
                         }
-                    }
-                });
-
-                events.sort((a, b) => b.ts - a.ts);
-                const recentEvents = events.slice(0, 10);
-
-                if (recentEvents.length > 0) {
-                    recentEvents.forEach(ev => {
-                        const date = new Date(ev.ts * 1000);
-                        const dateFmt = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                        const timeFmt = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                        
-                        let statusText = 'System Online';
-                        let textColor = '#15803D';
-                        let bgColor = '#DCFCE7';
-                        let icon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" style="margin-right:4px;vertical-align:middle;display:inline-block;"><polyline points="20 6 9 17 4 12"/></svg>`;
-
-                        if (ev.event === 'offline') {
-                            statusText = 'System Offline';
-                            textColor = '#DC2626';
-                            bgColor = '#FEE2E2';
-                            icon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" style="margin-right:4px;vertical-align:middle;display:inline-block;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-                        } else if (ev.event === 'fault') {
-                            statusText = 'Limit Switch Fault';
-                            textColor = '#D97706';
-                            bgColor = '#FEF3C7';
-                            icon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" style="margin-right:4px;vertical-align:middle;display:inline-block;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
-                        }
-
-                        timelineHtml += `
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #F3F4F6;">
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <span style="background: ${bgColor}; color: ${textColor}; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; font-family: var(--mono); text-transform: uppercase;">
-                                        ${icon} ${statusText}
-                                    </span>
-                                </div>
-                                <div style="font-size: 12px; color: #4B5563; font-family: var(--mono); font-weight: 500;">
-                                    ${dateFmt}, ${timeFmt}
-                                </div>
-                            </div>
-                        `;
                     });
+
+                    events.sort((a, b) => b.ts - a.ts);
+                    const recentEvents = events.slice(0, 10);
+
+                    if (recentEvents.length > 0) {
+                        timelineHtml = '';
+                        recentEvents.forEach(ev => {
+                            const date = new Date(ev.ts * 1000);
+                            const dateFmt = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            const timeFmt = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                            
+                            let statusText = 'System Online';
+                            let textColor = '#15803D';
+                            let bgColor = '#DCFCE7';
+                            let icon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" style="margin-right:4px;vertical-align:middle;display:inline-block;"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+                            if (ev.event === 'offline') {
+                                statusText = 'System Offline';
+                                textColor = '#DC2626';
+                                bgColor = '#FEE2E2';
+                                icon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" style="margin-right:4px;vertical-align:middle;display:inline-block;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+                            } else if (ev.event === 'fault') {
+                                statusText = 'Limit Switch Fault';
+                                textColor = '#D97706';
+                                bgColor = '#FEF3C7';
+                                icon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" style="margin-right:4px;vertical-align:middle;display:inline-block;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+                            }
+
+                            timelineHtml += `
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #F3F4F6;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <span style="background: ${bgColor}; color: ${textColor}; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; font-family: var(--mono); text-transform: uppercase;">
+                                            ${icon} ${statusText}
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #4B5563; font-family: var(--mono); font-weight: 500;">
+                                        ${dateFmt}, ${timeFmt}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        timelineHtml = `<div style="padding: 20px 0; color: #9CA3AF; font-size: 12px; text-align: center;">No diagnostic transitions recorded in database.</div>`;
+                    }
                 } else {
                     timelineHtml = `<div style="padding: 20px 0; color: #9CA3AF; font-size: 12px; text-align: center;">No diagnostic transitions recorded in database.</div>`;
                 }
-            } else {
-                timelineHtml = `<div style="padding: 20px 0; color: #9CA3AF; font-size: 12px; text-align: center;">No diagnostic transitions recorded in database.</div>`;
+            } catch (err) {
+                console.error(err);
+                timelineHtml = `<div style="padding: 20px 0; color: #DC2626; font-size: 12px; text-align: center;">Error loading diagnostics.</div>`;
             }
 
             container.innerHTML = `
