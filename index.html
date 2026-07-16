@@ -2085,9 +2085,11 @@
 
             const devId = expandId.replace('exp-', '');
             const device = devicesData[devId];
+            window.timelineCache = window.timelineCache || {};
             
-            let existingHtml = container.innerHTML || '';
-            if (!existingHtml.includes("RECENT TRANSITION DIAGNOSTICS") || existingHtml.includes("Loading diagnostics...")) {
+            if (window.timelineCache[devId]) {
+                container.innerHTML = window.timelineCache[devId];
+            } else {
                 let initialTimelineHtml = '<div style="padding: 20px 0; color: #9CA3AF; font-size: 12px; text-align: center;">Loading diagnostics...</div>';
                 container.innerHTML = `
                     <div style="padding: 24px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; margin: 10px 0;">
@@ -2171,7 +2173,7 @@
                 timelineHtml = `<div style="padding: 20px 0; color: #DC2626; font-size: 12px; text-align: center;">Error loading diagnostics.</div>`;
             }
 
-            container.innerHTML = `
+            const finalHtml = `
                 <div style="padding: 24px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; margin: 10px 0;">
                     <div style="font-size: 12px; letter-spacing: 1px; color: var(--text); font-weight: 700; font-family: var(--sans); margin-bottom: 8px;">
                         RECENT TRANSITION DIAGNOSTICS
@@ -2184,6 +2186,8 @@
                     </div>
                 </div>
             `;
+            container.innerHTML = finalHtml;
+            window.timelineCache[devId] = finalHtml;
         };
 
         window.expandedDeviceIds = window.expandedDeviceIds || {};
