@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const HISTORY_FILE = "solar_fleet_history.json";
-const MAX_DAYS = 31;
+const MAX_DAYS = 0;
 
 function pruneLogs() {
     if (!fs.existsSync(HISTORY_FILE)) {
@@ -14,6 +14,13 @@ function pruneLogs() {
         history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
     } catch (e) {
         console.error(">> Error reading history file:", e);
+        return;
+    }
+
+    if (MAX_DAYS === 0) {
+        console.log(">> MAX_DAYS is 0. Erasing all history immediately...");
+        fs.writeFileSync(HISTORY_FILE, JSON.stringify({}, null, 2));
+        console.log(">> Pruned successfully. History is completely empty.");
         return;
     }
 
