@@ -3,7 +3,7 @@ const admin = require('firebase-admin');
 // ── SECURE ENVIRONMENT CHECK ──
 const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
 const DATABASE_URL = "https://solarplants-780ad-default-rtdb.firebaseio.com/";
-const MAX_DAYS = 0;
+const MAX_DAYS = 31;
 
 if (!serviceAccountRaw) {
     console.error("CRITICAL AUTH EXCEPTION: FIREBASE_SERVICE_ACCOUNT environmental token missing.");
