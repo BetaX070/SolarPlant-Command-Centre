@@ -27,9 +27,11 @@ const db = admin.database();
 
 async function logFleetData() {
     try {
-        console.log(">> Fetching SolarPlant device data...");
-        const snapshot = await db.ref('SolarPlant/device_data').once('value');
-        const devices = snapshot.val();
+        console.log(">> Fetching SolarPlant device data and logs...");
+        const dataSnapshot = await db.ref('SolarPlant/device_data').once('value');
+        const logsSnapshot = await db.ref('SolarPlant/device_logs').once('value');
+        const devices = dataSnapshot.val();
+        const logs = logsSnapshot.val() || {};
 
         if (!devices) {
             console.log(">> No devices found.");
@@ -65,9 +67,11 @@ async function logFleetData() {
             
             const stats = history[today][locId];
             
+            const deviceLogs = logs[id] || {};
+            
             // Tally status logs
-            if (d.status_log) {
-                for (const [key, val] of Object.entries(d.status_log)) {
+            if (deviceLogs.status_log) {
+                for (const [key, val] of Object.entries(deviceLogs.status_log)) {
                     if (val.event === 'online') stats.onlineEvents++;
                     else if (val.event === 'offline') stats.offlineEvents++;
                     else if (val.event === 'fault') stats.sensorFaults++;
@@ -75,8 +79,8 @@ async function logFleetData() {
             }
             
             // Tally action logs (pump / motor)
-            if (d.action_log) {
-                for (const [key, val] of Object.entries(d.action_log)) {
+            if (deviceLogs.action_log) {
+                for (const [key, val] of Object.entries(deviceLogs.action_log)) {
                     if (val.action && val.action.includes('Pump ON')) stats.pumpRuns++;
                     if (val.action && val.action.includes('Robot Cleaner Started')) stats.robotRuns++;
                 }
