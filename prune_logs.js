@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const HISTORY_FILE = "solar_fleet_history.json";
-const MAX_DAYS = 0;
+const MAX_DAYS = 31;
 
 function pruneLogs() {
     if (!fs.existsSync(HISTORY_FILE)) {
