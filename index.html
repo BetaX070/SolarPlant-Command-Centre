@@ -2512,6 +2512,7 @@
                     if (!dayData) return;
                     
                     Object.keys(dayData).forEach(locId => {
+                        if (targetVal !== 'all' && locId !== targetVal) return;
                         const s = dayData[locId];
                         checksTotal += (s.onlineEvents + s.offlineEvents || 0);
                         onlineChecks += (s.onlineEvents || 0);
@@ -2555,6 +2556,15 @@
                     uptimePercent = (onlineChecks / checksTotal) * 100;
                 } else {
                     uptimePercent = (onlineUnits / totalUnits) * 100;
+                }
+
+                // Inject live faults into hardware table to prevent 0 errs on active alerts
+                if (sensorFaultUnits > 0) {
+                    tempErrors += sensorFaultUnits;
+                    checksTotal += sensorFaultUnits;
+                }
+                if (overtimePumpUnits > 0 || overtimeMotorUnits > 0) {
+                    checksTotal += (overtimePumpUnits + overtimeMotorUnits);
                 }
 
                 // Map 3 hardware integrity charts error values
