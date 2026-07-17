@@ -2524,6 +2524,23 @@
                 const pdfNow = Date.now();
 
                 list.forEach(d => {
+                    const ownerId = d.owner;
+                    const ownerData = window.usersDB[ownerId] || {};
+                    const userLocations = window.farmsDB[ownerId] || {};
+                    const locationObj = userLocations[d.locationId] || {};
+
+                    d.owner_name = ownerData.name || ownerData.email || "Unknown Customer";
+                    d.owner_phone = ownerData.whatsapp || ownerData.phone || null;
+                    d.farm_name = locationObj.name || ownerData.farm_name || "BetaX Solar Farm";
+
+                    let loc = "Unknown Region";
+                    const ownerState = ownerData.state || "";
+                    const ownerCountry = ownerData.country || "";
+                    if (ownerState && ownerCountry) loc = `${ownerState}, ${ownerCountry}`;
+                    else if (ownerCountry) loc = ownerCountry;
+                    else if (ownerData.farm_location) loc = ownerData.farm_location;
+                    d.locationStr = loc;
+
                     const ls = d.lastHeartbeat ? (d.lastHeartbeat * 1000) : 0;
                     d.isOnline = ls > 0 && (pdfNow - ls < 120000);
                     d.hasAnomaly = d.sensor_health === "Fault";
