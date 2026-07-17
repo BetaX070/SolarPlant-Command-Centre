@@ -2543,8 +2543,6 @@
                     uptimePercent = 0.0;
                 } else if (checksTotal > 0) {
                     uptimePercent = (onlineChecks / checksTotal) * 100;
-                } else if (totalUnits === 1) {
-                    uptimePercent = list.find(d => d.id === targetVal).isOnline ? 100.0 : 0.0;
                 } else {
                     uptimePercent = (onlineUnits / totalUnits) * 100;
                 }
