@@ -2538,7 +2538,7 @@
                         if (d.motor_status === "Running") overtimeMotorUnits++;
                     });
                 } else {
-                    const d = devicesData[targetVal];
+                    const d = list.find(item => item.id === targetVal);
                     if (!d) throw new Error("Device not found.");
                     totalUnits = 1;
                     selectedName = d.owner_name || "BetaX Customer";
