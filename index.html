@@ -2316,6 +2316,10 @@
         function populateReportTargets(list) {
             const targetSel = document.getElementById("report-scope-target");
             if (!targetSel) return;
+            
+            // Preserve the user's current selection before DOM refresh
+            const currentSelection = targetSel.value;
+            
             targetSel.innerHTML = `<option value="all">Entire Active Fleet (${list.length} Panels)</option>`;
 
             list.forEach(d => {
@@ -2324,6 +2328,12 @@
                 opt.textContent = `${d.owner_name || 'Pending'} — ID: ${d.id} (${d.farm_name || 'Farm'})`;
                 targetSel.appendChild(opt);
             });
+            
+            // Restore selection if the selected device still exists
+            if (currentSelection) {
+                const optionExists = Array.from(targetSel.options).some(opt => opt.value === currentSelection);
+                if (optionExists) targetSel.value = currentSelection;
+            }
         }
 
         function showReportToast(msg, isError = false) {
