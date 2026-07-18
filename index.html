@@ -1505,18 +1505,27 @@
                 updateUI();
             });
 
-            // Sync devices telemetry data
+            // Sync devices telemetry data — show ALL devices regardless of status
             onValue(ref(db, 'SolarPlant/device_data'), snapshot => {
                 const val = snapshot.val() || {};
                 devicesData = {};
                 Object.keys(val).forEach(key => {
-                    if (val[key] && val[key].status === 'Claimed') {
+                    if (val[key]) {
                         devicesData[key] = val[key];
                     }
                 });
                 updateUI();
             });
         }
+
+        // Live 1-second ticker for running timers (pump/motor elapsed display)
+        setInterval(() => {
+            // Only re-render pills if any device has an active running operation
+            const anyRunning = Object.values(devicesData).some(
+                d => d.pump_status === 'Running' || d.motor_status === 'Running'
+            );
+            if (anyRunning) updateUI();
+        }, 1000);
 
         // Global State & Tallying
         window.updateUI = function (data) {
@@ -1539,6 +1548,9 @@
                 d.owner_name = ownerData.name || ownerData.email || "Unknown Customer";
                 d.owner_phone = ownerData.whatsapp || ownerData.phone || null;
                 d.farm_name = locationObj.name || ownerData.farm_name || "BetaX Solar Farm";
+
+                // Orphaned = device exists in DB but no owner (user deleted from app)
+                d.isOrphaned = !d.owner || d.owner === '' || d.status === 'Unclaimed';
 
                 let loc = "Unknown Region";
                 const ownerState = ownerData.state || "";
@@ -1576,13 +1588,13 @@
                 }
 
                 // Tally active operations (Pumps / Motors running)
-                d.isPumpRunning = d.pump_status === "Running" || (d.pump && d.pump.status);
-                d.isMotorRunning = d.motor_status === "Running" || [1,2,3,4,5].some(i => d[`robot${i}`] && d[`robot${i}`].status);
-                
-                // Track Overtime (>30 mins = 1800 seconds)
+                d.isPumpRunning = d.pump_status === "Running";
+                d.isMotorRunning = d.motor_status === "Running";
+
+                // Track Overtime (> 30 mins = 1800 seconds)
                 const currentEpoch = Math.floor(now / 1000);
-                d.isPumpOvertime = d.isPumpRunning && d.pump_execStartTime && (currentEpoch - d.pump_execStartTime) > 1800;
-                d.isMotorOvertime = d.isMotorRunning && d.motor_execStartTime && (currentEpoch - d.motor_execStartTime) > 1800;
+                d.isPumpOvertime = d.isPumpRunning && d.pump_execStartTime > 0 && (currentEpoch - d.pump_execStartTime) >= 1800;
+                d.isMotorOvertime = d.isMotorRunning && d.motor_execStartTime > 0 && (currentEpoch - d.motor_execStartTime) >= 1800;
                 
                 if (d.isPumpRunning) activePumps++;
                 if (d.isMotorRunning) activeMotors++;
@@ -1931,9 +1943,14 @@
 
                 farm.devices.forEach(d => {
                     const expandId = `exp-${d.id}`;
-                    let statusHtml = d.isOnline 
-                        ? `<span class="status-indicator online"><span class="pulse-dot"></span>Online</span>`
-                        : `<span class="status-indicator offline"><span class="static-dot"></span>Offline (${formatAgoLong(d.lastSeenMs)})</span>`;
+                    let statusHtml;
+                    if (d.isOrphaned) {
+                        statusHtml = `<span class="status-indicator" style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);color:#DC2626;"><span style="width:6px;height:6px;border-radius:50%;background:#DC2626;display:inline-block;margin-right:5px;"></span>Orphaned</span>`;
+                    } else if (d.isOnline) {
+                        statusHtml = `<span class="status-indicator online"><span class="pulse-dot"></span>Online</span>`;
+                    } else {
+                        statusHtml = `<span class="status-indicator offline"><span class="static-dot"></span>Offline (${formatAgoLong(d.lastSeenMs)})</span>`;
+                    }
 
                     // Resolve custom names
                     let pumpName = (d.pump && d.pump.name) ? d.pump.name : "Main Water Pump";
