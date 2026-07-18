@@ -1505,13 +1505,19 @@
                 updateUI();
             });
 
-            // Sync devices telemetry data — show ALL devices regardless of status
+            // Sync devices telemetry data
+            // Show: Claimed devices + Orphaned (previously owned, now deleted by user)
+            // Hide: fresh unclaimed devices that were never registered to any user
             onValue(ref(db, 'SolarPlant/device_data'), snapshot => {
                 const val = snapshot.val() || {};
                 devicesData = {};
                 Object.keys(val).forEach(key => {
-                    if (val[key]) {
-                        devicesData[key] = val[key];
+                    const d = val[key];
+                    if (!d) return;
+                    const isClaimed   = d.status === 'Claimed';
+                    const isOrphaned  = d.status === 'Unclaimed' && d.wasOwned === true;
+                    if (isClaimed || isOrphaned) {
+                        devicesData[key] = d;
                     }
                 });
                 updateUI();
@@ -1538,7 +1544,8 @@
 
             list.forEach(d => {
                 // Cross-reference user profiles and regional locations
-                const ownerId = d.owner;
+                // For orphaned devices: use prevOwner to look up user data since owner is now empty
+                const ownerId = (d.owner && d.owner !== '') ? d.owner : (d.prevOwner || '');
                 const ownerData = window.usersDB[ownerId] || {};
                 
                 // locations metadata is structured as SolarPlant/locations/$uid/$locationId
@@ -1549,8 +1556,8 @@
                 d.owner_phone = ownerData.whatsapp || ownerData.phone || null;
                 d.farm_name = locationObj.name || ownerData.farm_name || "BetaX Solar Farm";
 
-                // Orphaned = device exists in DB but no owner (user deleted from app)
-                d.isOrphaned = !d.owner || d.owner === '' || d.status === 'Unclaimed';
+                // Orphaned = was previously owned by a user but they deleted it from their app
+                d.isOrphaned = d.status === 'Unclaimed' && d.wasOwned === true;
 
                 let loc = "Unknown Region";
                 const ownerState = ownerData.state || "";
@@ -1587,11 +1594,38 @@
                     }
                 }
 
-                // Tally active operations (Pumps / Motors running)
-                d.isPumpRunning = d.pump_status === "Running";
-                d.isMotorRunning = d.motor_status === "Running";
+                // ── INSTANT REACTION: read app commands before waiting for ESP32 ──
+                // The Flutter app writes pump.active / robot.active directly to Firebase.
+                // These arrive in the fleet ~200ms after the button press.
+                // pump_status / motor_status are written by the ESP32 AFTER physical relay
+                // toggle (~4-6 seconds later). We trust the app command first.
 
-                // Track Overtime (> 30 mins = 1800 seconds)
+                const appSaysPumpOn  = d.pump  && d.pump.active  === true;
+                const appSaysPumpOff = d.pump  && d.pump.active  === false;
+                const anyRobotOn     = [1,2,3,4,5].some(i => d[`robot${i}`] && d[`robot${i}`].active === true);
+                const anyRobotOff    = !anyRobotOn && [1,2,3,4,5].some(i => d[`robot${i}`] && d[`robot${i}`].active === false);
+
+                // PUMP: trust app ON immediately; trust app OFF immediately;
+                // fall back to pump_status for scheduled runs
+                if (appSaysPumpOn) {
+                    d.isPumpRunning = true;
+                } else if (appSaysPumpOff) {
+                    d.isPumpRunning = false;  // App turned it off — don't wait for ESP32
+                } else {
+                    d.isPumpRunning = d.pump_status === "Running";  // Scheduled / ESP32 driven
+                }
+
+                // MOTOR: trust app robot.active immediately;
+                // if app explicitly turned off all robots, stop immediately
+                if (anyRobotOn) {
+                    d.isMotorRunning = true;
+                } else if (anyRobotOff) {
+                    d.isMotorRunning = false;  // App turned off — don't wait for ESP32
+                } else {
+                    d.isMotorRunning = d.motor_status === "Running";  // Scheduled / ESP32 driven
+                }
+
+                // Track Overtime (>= 30 mins = 1800 seconds)
                 const currentEpoch = Math.floor(now / 1000);
                 d.isPumpOvertime = d.isPumpRunning && d.pump_execStartTime > 0 && (currentEpoch - d.pump_execStartTime) >= 1800;
                 d.isMotorOvertime = d.isMotorRunning && d.motor_execStartTime > 0 && (currentEpoch - d.motor_execStartTime) >= 1800;
@@ -1905,13 +1939,34 @@
                     }
                 });
 
-                const waMsg = buildFarmWhatsappMessage(farm.devices, farmName, customerName);
-                let waHtml = '';
-                if (farmPhone) {
-                    const waLink = waMsg ? `https://wa.me/${farmPhone}?text=${waMsg}` : `https://wa.me/${farmPhone}`;
-                    waHtml = `<a class="wa-btn" href="${waLink}" target="_blank" onclick="event.stopPropagation();"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>${farmPhone}</a>`;
+                // Check if this farm group contains orphaned devices
+                const hasOrphaned = farm.devices.some(d => d.isOrphaned);
+
+                let waMsg, waHtml;
+                if (hasOrphaned) {
+                    // Dedicated deletion-inquiry message for orphaned device groups
+                    const orphanMsg = encodeURIComponent(
+                        `Hello ${customerName}, this is BetaX Technologies Support.\n\n` +
+                        `We noticed that your SolarPlant cleaner device at *${farmName}* was recently removed from your app.\n\n` +
+                        `We just want to check in:\n` +
+                        `• Was this done by mistake? If so, we can restore it immediately.\n` +
+                        `• Are you experiencing any issues with the device or its location?\n` +
+                        `• Do you need any technical assistance from our team?\n\n` +
+                        `Your device is still powered on and connected. We are here to help! 🌞`
+                    );
+                    if (farmPhone) {
+                        waHtml = `<a class="wa-btn" href="https://wa.me/${farmPhone}?text=${orphanMsg}" target="_blank" onclick="event.stopPropagation();" style="background:rgba(220,38,38,0.1);border-color:rgba(220,38,38,0.3);color:#DC2626;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>${farmPhone} · Enquire</a>`;
+                    } else {
+                        waHtml = `<span style="color:#DC2626;font-size:11px;font-weight:600;">⚠ Orphaned — No Phone</span>`;
+                    }
                 } else {
-                    waHtml = `<span style="color:var(--muted);font-size:11px;">No Phone Provided</span>`;
+                    waMsg = buildFarmWhatsappMessage(farm.devices, farmName, customerName);
+                    if (farmPhone) {
+                        const waLink = waMsg ? `https://wa.me/${farmPhone}?text=${waMsg}` : `https://wa.me/${farmPhone}`;
+                        waHtml = `<a class="wa-btn" href="${waLink}" target="_blank" onclick="event.stopPropagation();"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>${farmPhone}</a>`;
+                    } else {
+                        waHtml = `<span style="color:var(--muted);font-size:11px;">No Phone Provided</span>`;
+                    }
                 }
 
                 let farmHtml = `
@@ -1992,32 +2047,35 @@
                     const now = Date.now() + serverTimeOffset;
                     const currentEpoch = Math.floor(now / 1000);
 
-                    // Pump pill builder
+                    // Pump pill builder — show start time immediately even before ESP32 confirms
                     let pumpPill = '';
                     if (d.isPumpRunning) {
-                        const elapsed = d.pump_execStartTime ? (currentEpoch - d.pump_execStartTime) : 0;
+                        // If ESP32 hasn't written execStartTime yet, approximate with now
+                        const pumpStart = (d.pump_execStartTime > 0) ? d.pump_execStartTime : currentEpoch;
+                        const elapsed = currentEpoch - pumpStart;
                         const isOvertime = elapsed >= 1800;
                         const pillClass = isOvertime ? 'pill-critical' : 'pill-normal';
-                        const startStr = d.pump_execStartTime ? ` · Started: ${formatTimeOnly(d.pump_execStartTime)}` : '';
-                        const durStr = d.pump_execStartTime ? ` (${formatElapsed(elapsed)})` : '';
+                        const startStr = d.pump_execStartTime > 0 ? ` · Started: ${formatTimeOnly(pumpStart)}` : ' · Starting...';
+                        const durStr = ` (${formatElapsed(elapsed)}`;
                         const overtimeIndicator = isOvertime ? ' ⚠️ OVERTIME' : '';
-                        
-                        pumpPill = `<span class="sensor-pill ${pillClass}"><span class="pill-dot"></span>${pumpName}: RUNNING${durStr}${startStr}${overtimeIndicator}</span>`;
+                        pumpPill = `<span class="sensor-pill ${pillClass}"><span class="pill-dot"></span>${pumpName}: RUNNING${durStr}${overtimeIndicator})${startStr}</span>`;
                     } else {
                         pumpPill = `<span class="sensor-pill pill-warning"><span class="pill-dot"></span>${pumpName}: IDLE</span>`;
                     }
 
-                    // Motor/Robot pill builder
+                    // Motor/Robot pill builder — show start time immediately even before ESP32 confirms
                     let motorPill = '';
                     if (d.isMotorRunning) {
-                        const elapsed = d.motor_execStartTime ? (currentEpoch - d.motor_execStartTime) : 0;
+                        // If ESP32 hasn't written execStartTime yet, approximate with now
+                        const motorStart = (d.motor_execStartTime > 0) ? d.motor_execStartTime : currentEpoch;
+                        const elapsed = currentEpoch - motorStart;
                         const isOvertime = elapsed >= 1800;
                         const pillClass = isOvertime ? 'pill-critical' : 'pill-normal';
-                        const startStr = d.motor_execStartTime ? ` · Started: ${formatTimeOnly(d.motor_execStartTime)}` : '';
-                        const durStr = d.motor_execStartTime ? ` (${formatElapsed(elapsed)})` : '';
+                        const startStr = d.motor_execStartTime > 0 ? ` · Started: ${formatTimeOnly(motorStart)}` : ' · Starting...';
+                        const durStr = ` (${formatElapsed(elapsed)}`;
                         const overtimeIndicator = isOvertime ? ' ⚠️ OVERTIME' : '';
 
-                        motorPill = `<span class="sensor-pill ${pillClass}"><span class="pill-dot"></span>${robotName}: RUNNING${durStr}${startStr}${overtimeIndicator}</span>`;
+                        motorPill = `<span class="sensor-pill ${pillClass}"><span class="pill-dot"></span>${robotName}: RUNNING${durStr}${overtimeIndicator})${startStr}</span>`;
                     } else {
                         motorPill = `<span class="sensor-pill pill-warning"><span class="pill-dot"></span>${robotName}: IDLE</span>`;
                     }
