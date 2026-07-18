@@ -1595,38 +1595,57 @@
                 }
 
                 // ── INSTANT REACTION: read app commands before waiting for ESP32 ──
-                // The Flutter app writes pump.active / robot.active directly to Firebase.
-                // These arrive in the fleet ~200ms after the button press.
-                // pump_status / motor_status are written by the ESP32 AFTER physical relay
-                // toggle (~4-6 seconds later). We trust the app command first.
+                // Flutter app writes: pump.status (bool), pump.commandTime (unix seconds)
+                //                     robot1.status (bool), robot1.commandTime (unix seconds)
+                // These arrive in the fleet ~200ms after button press.
+                // pump_status/motor_status + pump_execStartTime/motor_execStartTime are written
+                // by the ESP32 AFTER physical relay toggle (~4-6 seconds later).
 
-                const appSaysPumpOn  = d.pump  && d.pump.active  === true;
-                const appSaysPumpOff = d.pump  && d.pump.active  === false;
-                const anyRobotOn     = [1,2,3,4,5].some(i => d[`robot${i}`] && d[`robot${i}`].active === true);
-                const anyRobotOff    = !anyRobotOn && [1,2,3,4,5].some(i => d[`robot${i}`] && d[`robot${i}`].active === false);
+                const appSaysPumpOn  = d.pump  && d.pump.status  === true;
+                const appSaysPumpOff = d.pump  && d.pump.status  === false;
+                const anyRobotOn     = [1,2,3,4,5].some(i => d[`robot${i}`] && d[`robot${i}`].status === true);
+                const anyRobotOff    = !anyRobotOn && [1,2,3,4,5].some(i => d[`robot${i}`] && d[`robot${i}`].status === false);
 
-                // PUMP: trust app ON immediately; trust app OFF immediately;
-                // fall back to pump_status for scheduled runs
+                // PUMP running state: trust app immediately, fall back to ESP32 for scheduled runs
                 if (appSaysPumpOn) {
                     d.isPumpRunning = true;
                 } else if (appSaysPumpOff) {
-                    d.isPumpRunning = false;  // App turned it off — don't wait for ESP32
+                    d.isPumpRunning = false;
                 } else {
-                    d.isPumpRunning = d.pump_status === "Running";  // Scheduled / ESP32 driven
+                    d.isPumpRunning = d.pump_status === "Running";
                 }
 
-                // MOTOR: trust app robot.active immediately;
-                // if app explicitly turned off all robots, stop immediately
+                // MOTOR running state: trust app immediately, fall back to ESP32 for scheduled runs
                 if (anyRobotOn) {
                     d.isMotorRunning = true;
                 } else if (anyRobotOff) {
-                    d.isMotorRunning = false;  // App turned off — don't wait for ESP32
+                    d.isMotorRunning = false;
                 } else {
-                    d.isMotorRunning = d.motor_status === "Running";  // Scheduled / ESP32 driven
+                    d.isMotorRunning = d.motor_status === "Running";
+                }
+
+                // ── INSTANT START TIME: use commandTime while ESP32 hasn't confirmed yet ──
+                // pump_execStartTime / motor_execStartTime = 0 until ESP32 writes back.
+                // commandTime is set by the app at the exact moment the button is pressed.
+                const currentEpoch = Math.floor(now / 1000);
+
+                // Pump start time: prefer ESP32 confirmed time, fall back to app commandTime
+                if (d.isPumpRunning && (!d.pump_execStartTime || d.pump_execStartTime === 0)) {
+                    d.pump_execStartTime = (d.pump && d.pump.commandTime) ? d.pump.commandTime : currentEpoch;
+                }
+                // Motor start time: prefer ESP32 confirmed time, fall back to earliest robot commandTime
+                if (d.isMotorRunning && (!d.motor_execStartTime || d.motor_execStartTime === 0)) {
+                    let earliestCmd = 0;
+                    [1,2,3,4,5].forEach(i => {
+                        const r = d[`robot${i}`];
+                        if (r && r.status === true && r.commandTime > 0) {
+                            if (earliestCmd === 0 || r.commandTime < earliestCmd) earliestCmd = r.commandTime;
+                        }
+                    });
+                    d.motor_execStartTime = earliestCmd > 0 ? earliestCmd : currentEpoch;
                 }
 
                 // Track Overtime (>= 30 mins = 1800 seconds)
-                const currentEpoch = Math.floor(now / 1000);
                 d.isPumpOvertime = d.isPumpRunning && d.pump_execStartTime > 0 && (currentEpoch - d.pump_execStartTime) >= 1800;
                 d.isMotorOvertime = d.isMotorRunning && d.motor_execStartTime > 0 && (currentEpoch - d.motor_execStartTime) >= 1800;
                 
