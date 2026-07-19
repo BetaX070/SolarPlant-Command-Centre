@@ -1624,17 +1624,32 @@
                     d.isMotorRunning = d.motor_status === "Running";
                 }
 
+                // ── CLEAR STALE START TIMES WHEN STOPPED ──
+                // This prevents old execStartTime from ESP32 persisting after the
+                // device stops, so the next run always starts fresh from zero.
+                if (!d.isPumpRunning) {
+                    d.pump_execStartTime = 0;
+                }
+                if (!d.isMotorRunning) {
+                    d.motor_execStartTime = 0;
+                }
+
                 // ── INSTANT START TIME: use commandTime while ESP32 hasn't confirmed yet ──
                 // pump_execStartTime / motor_execStartTime = 0 until ESP32 writes back.
                 // commandTime is set by the app at the exact moment the button is pressed.
-                const currentEpoch = Math.floor(now / 1000);
-
-                // Pump start time: prefer ESP32 confirmed time, fall back to app commandTime
-                if (d.isPumpRunning && (!d.pump_execStartTime || d.pump_execStartTime === 0)) {
-                    d.pump_execStartTime = (d.pump && d.pump.commandTime) ? d.pump.commandTime : currentEpoch;
+                // Validate: only use execStartTime from ESP32 if it is >= commandTime
+                // (otherwise it's a stale value from a previous run).
+                if (d.isPumpRunning) {
+                    const cmdTime = (d.pump && d.pump.commandTime) ? d.pump.commandTime : 0;
+                    const esp32Start = d.pump_execStartTime || 0;
+                    if (esp32Start > 0 && (cmdTime === 0 || esp32Start >= cmdTime)) {
+                        // ESP32 confirmed time is valid — keep it
+                    } else {
+                        // Use app commandTime as immediate start
+                        d.pump_execStartTime = cmdTime > 0 ? cmdTime : currentEpoch;
+                    }
                 }
-                // Motor start time: prefer ESP32 confirmed time, fall back to earliest robot commandTime
-                if (d.isMotorRunning && (!d.motor_execStartTime || d.motor_execStartTime === 0)) {
+                if (d.isMotorRunning) {
                     let earliestCmd = 0;
                     [1,2,3,4,5].forEach(i => {
                         const r = d[`robot${i}`];
@@ -1642,7 +1657,12 @@
                             if (earliestCmd === 0 || r.commandTime < earliestCmd) earliestCmd = r.commandTime;
                         }
                     });
-                    d.motor_execStartTime = earliestCmd > 0 ? earliestCmd : currentEpoch;
+                    const esp32MotorStart = d.motor_execStartTime || 0;
+                    if (esp32MotorStart > 0 && (earliestCmd === 0 || esp32MotorStart >= earliestCmd)) {
+                        // ESP32 confirmed time is valid — keep it
+                    } else {
+                        d.motor_execStartTime = earliestCmd > 0 ? earliestCmd : currentEpoch;
+                    }
                 }
 
                 // Track Overtime (>= 30 mins = 1800 seconds)
@@ -2051,14 +2071,14 @@
                         return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
                     };
 
-                    // Helper to format elapsed duration
+                    // Helper to format elapsed duration — always show hr when >= 60 min
                     const formatElapsed = (seconds) => {
                         if (seconds < 0) seconds = 0;
                         const h = Math.floor(seconds / 3600);
                         const m = Math.floor((seconds % 3600) / 60);
                         const s = seconds % 60;
-                        if (h > 0) return `${h}h ${m}m`;
-                        if (m > 0) return `${m}m ${s}s`;
+                        if (h > 0) return `${h}hr ${m}min`;
+                        if (m > 0) return `${m}min ${s}s`;
                         return `${s}s`;
                     };
 
@@ -2118,12 +2138,12 @@
                           ${statusHtml}
                           <span class="device-id" style="margin-left: auto; margin-right: 24px;">ID: ${d.id}</span>
                         </div>
-                        <div class="sensor-strip">
+                        <div class="sensor-strip" style="flex-wrap: wrap; row-gap: 6px; align-items: center;">
                           <span class="pump-badge">${cleanerSvg} PANEL SYSTEM</span>
                           ${pumpPill}
                           ${motorPill}
                           ${healthPill}
-                          <span style="margin-left:auto; color:var(--muted); font-size:11px; font-family:var(--mono);">FW: ${d.firmware || 'V5'}</span>
+                          <span style="color:var(--muted); font-size:11px; font-family:var(--mono); margin-left: auto;">FW: ${d.firmware || 'V5'}</span>
                         </div>
                       </td>
                     </tr>
