@@ -1655,6 +1655,8 @@
                 // commandTime is set by the app at the exact moment the button is pressed.
                 // Validate: only use execStartTime from ESP32 if it is >= commandTime
                 // (otherwise it's a stale value from a previous run).
+                const currentEpoch = Math.floor(now / 1000);
+                
                 if (d.isPumpRunning) {
                     const cmdTime = (d.pump && d.pump.commandTime) ? d.pump.commandTime : 0;
                     const esp32Start = d.pump_execStartTime || 0;
