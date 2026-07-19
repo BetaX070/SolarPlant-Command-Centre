@@ -1484,6 +1484,17 @@
         window.usersDB = {};
         window.farmsDB = {};
 
+        // Readiness flags — updateUI must NOT fire until all three
+        // Firebase sources have delivered at least one snapshot.
+        // Without this, whichever source fires first calls updateUI
+        // with the other two still empty, producing all-zero dashboards.
+        let usersLoaded   = false;
+        let farmsLoaded   = false;
+        let devicesLoaded = false;
+        function maybeUpdateUI() {
+            if (usersLoaded && farmsLoaded && devicesLoaded) updateUI();
+        }
+
         function initSync() {
             document.getElementById("live-status-dot").classList.remove("inactive");
             document.getElementById("live-status-txt").textContent = "Live sync active";
@@ -1496,13 +1507,15 @@
             // Sync users metadata
             onValue(ref(db, 'SolarPlant/users'), snapshot => {
                 window.usersDB = snapshot.val() || {};
-                updateUI();
+                usersLoaded = true;
+                maybeUpdateUI();
             });
 
             // Sync locations/farms metadata
             onValue(ref(db, 'SolarPlant/locations'), snapshot => {
                 window.farmsDB = snapshot.val() || {};
-                updateUI();
+                farmsLoaded = true;
+                maybeUpdateUI();
             });
 
             // Sync devices telemetry data
@@ -1520,15 +1533,18 @@
                         devicesData[key] = d;
                     }
                 });
-                updateUI();
+                devicesLoaded = true;
+                maybeUpdateUI();
             });
         }
 
         // Live 1-second ticker for running timers (pump/motor elapsed display)
         setInterval(() => {
-            // Only re-render pills if any device has an active running operation
+            // Only re-render if all sources are ready AND a device is actively running
+            if (!devicesLoaded) return;
             const anyRunning = Object.values(devicesData).some(
-                d => d.pump_status === 'Running' || d.motor_status === 'Running'
+                d => d.isPumpRunning || d.isMotorRunning ||
+                     d.pump_status === 'Running' || d.motor_status === 'Running'
             );
             if (anyRunning) updateUI();
         }, 1000);
