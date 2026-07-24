@@ -707,10 +707,6 @@
             display: inline-block;
             letter-spacing: 0.3px;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-            max-width: 120px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
             vertical-align: middle;
         }
 
@@ -3250,7 +3246,7 @@
                         doc.setFont("Montserrat", "bold");
                         doc.setFontSize(11);
                         doc.setTextColor(...cText);
-                        const shortId = d.id.length > 14 ? d.id.substring(0, 14) + '..' : d.id;
+                        const shortId = d.id;
                         doc.text(shortId, 18, invY + 5);
                         doc.setFont("Montserrat", "normal");
                         doc.setTextColor(...cMuted);
