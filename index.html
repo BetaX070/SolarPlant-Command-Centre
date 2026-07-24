@@ -2031,19 +2031,7 @@
                     }
                 }
 
-                if (d.isPumpOvertime) {
-                    problems.push(`Panel *${d.id}* wash pump *(${pumpName})* reached max 30-minute safety run limit.`);
-                    if (!suggestions.includes(`• Our automated safety system has auto-stopped ${pumpName} to conserve water and protect hardware.`)) {
-                        suggestions.push(`• Our automated safety system has auto-stopped ${pumpName} to conserve water and protect hardware.`);
-                    }
-                }
 
-                if (d.isMotorOvertime) {
-                    problems.push(`Panel *${d.id}* cleaner robot *(${robotName})* reached max 15-minute travel limit.`);
-                    if (!suggestions.includes(`• Our automated safety system has auto-stopped ${robotName} to protect rail motor lifespan.`)) {
-                        suggestions.push(`• Our automated safety system has auto-stopped ${robotName} to protect rail motor lifespan.`);
-                    }
-                }
 
             });
 
